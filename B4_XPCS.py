@@ -4,7 +4,7 @@
 #-----------------------------------------------------------------------------#
 
 __authors__  = "Han Xu - HEPS Hard X-ray Scattering Beamline (B4)"
-__date__     = "Date : 05.01.2021"
+__date__     = "Date : 04.01.2021"
 
 """
 B4 XPCS optic setup.
