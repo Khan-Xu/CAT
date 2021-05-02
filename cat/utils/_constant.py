@@ -1,19 +1,19 @@
 #-----------------------------------------------------------------------------#
-# Copyright (c) 2021 Institute of High Energy Physics Chinese Academy of 
+# Copyright (c) 2020 Institute of High Energy Physics Chinese Academy of 
 #                    Science
 #-----------------------------------------------------------------------------#
 
-__authors__  = "Han Xu - HEPS HXS (B4) xuhan@ihep.ac.cn"
-__date__     = "Date : 04.01.2021"
-__version__  = "beta-1.0"
+__authors__  = "Han Xu - heps hard x-ray scattering beamline (b4)"
+__date__     = "date : 05.02.2021"
+__version__  = "beta-0.2"
 
 
 """
-_constant: The constants for _srw_utils. (Copied from SRWPY!).
+_constant: the constants for _srw_utils. (copied from srwpy).
 
-Functions: None.
+functions: None.
            
-Classes  : None.
+classes  : None.
 """
 
 #-----------------------------------------------------------------------------#
@@ -47,4 +47,3 @@ _Mult             = 93.37290413839085      # From K to B
 _E_r              = 0.51099890221e-03      # From electron energy to electron 
                                            # moment
 
-#-----------------------------------------------------------------------------#

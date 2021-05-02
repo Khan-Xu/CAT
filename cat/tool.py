@@ -1,15 +1,15 @@
 #-----------------------------------------------------------------------------#
-# Copyright (c) 2021 Institute of High Energy Physics Chinese Academy of 
+# Copyright (c) 2020 Institute of High Energy Physics Chinese Academy of 
 #                    Science
 #-----------------------------------------------------------------------------#
 
-__authors__  = "Han Xu - HEPS HXS (B4) xuhan@ihep.ac.cn"
-__date__     = "Date : 04.01.2021"
-__version__  = "beta-1.0"
+__authors__  = "Han Xu - heps hard x-ray scattering beamline (b4)"
+__date__     = "date : 05.02.2021"
+__version__  = "beta-0.2"
 
 
 """
-tool: support and visualization functions.
+_source_utils: Source construction support.
 
 Functions: _fresnel    - DFFT fresenl propagation.
            propagate_s - single process coherent mode propagation
@@ -88,17 +88,6 @@ def _rotate(matrix, u = 0):
 
 def _gaussfit(x, y, mean, sigma):
     
-    """
-    Gauss fitting by scipy curve_fit
-    
-    Args: x     - the x-coordinate of data.
-          y     - the y-coordinate of data.
-          mean  - the guessed mean of data.
-          sigma - the gaussed sigma of data.
-          
-    Return: the fitted y data and parameters.
-    """
-    
     def gauss(x, a, x0, sigma):
         return a*np.exp(-(x - x0)**2/(2*sigma**2))
     
@@ -109,7 +98,37 @@ def _gaussfit(x, y, mean, sigma):
     fity = gauss(x, *popt)
     
     return fity, popt
+ 
+def argand_plot(wave, xtick = None, ytick = None):
+     
+    import bisect
+    phase = np.zeros((wave.shape[0], wave.shape[1], 4), dtype = float)
+    intensity = np.abs(wave)**2 / np.max((np.abs(wave))**2)
+    phase[:, :, 3] = intensity
+    
+    def getcolor(angle):
+        thick = angle // 60 % 2 and 1 - (angle % 60) / 60 or (angle % 60) / 60
+        colors = [[ 60,          1, thick, 0], 
+                  [120,          thick, 1, 0],
+                  [180,          0, 1, thick],
+                  [240,          0, thick, 1],
+                  [360,          thick, 0, 1],
+                  [float('inf'), 1, 0, thick]]
+        
+        return colors[bisect.bisect([x[0] for x in colors], angle)][1:]
+    
+    
+    for h in range(wave.shape[0]):
+        for v in range(wave.shape[1]):
+            phase[h, v, 0 : 3] = (
+                np.array(getcolor((np.angle(wave[h, v]) + np.pi) * 180/np.pi))
+                )
+            
+    plt.imshow(phase)
+    
+    return phase
 
+    
 #-----------------------------------------------------------------------------#
 
 def read_srw(file_name, h_range = None, v_range = None, 
@@ -388,6 +407,7 @@ def read_srw(file_name, h_range = None, v_range = None,
                 
         return h_re, v_re, data, moi1d
 
+        
 def plot_optic(optic, t = "intensity", n = (3, 3), save = 0):
     
     """
@@ -408,7 +428,11 @@ def plot_optic(optic, t = "intensity", n = (3, 3), save = 0):
         
         # calculate intensity
         
-        for i, ic in enumerate(optic.cmode):
+        cmode = list()
+        for i in range(optic.n):
+            cmode.append(optic.cmode[i])
+        
+        for i, ic in enumerate(cmode):
             intensity = intensity + optic.ratio[i] * np.abs(ic)**2
         
         fig, (ax0, ax1, ax2) = plt.subplots(1, 3, figsize = (20, 5))
@@ -493,7 +517,7 @@ def plot_optic(optic, t = "intensity", n = (3, 3), save = 0):
     if t == "mode":
         
         fig, axes = plt.subplots(int(n[0]), int(n[1]), 
-                                 figsize = (4*int(n[0]), 4*int(n[1])))
+                                 figsize = (4*int(n[1]), 4*int(n[0])))
         
         idx = 0
         
@@ -583,7 +607,8 @@ def plot_optic(optic, t = "intensity", n = (3, 3), save = 0):
     
     
     plt.savefig(optic.name + t + ".png", dpi = 500)
-        
+    
+    
 def load_optic(optic_name):
     
     """
@@ -640,16 +665,6 @@ def save_optic(optic):
         coherence.create_dataset("phase_lens", data = optic.phase_lens)
         
 def export_data(optic, t = 'intensity', c = 9):
-    
-    """
-    Export data (intensity, coherent modes, csd, ratio) to three column data.
-    
-    Args: optic - optic to save.
-          t     - properties (intenisty, mode, csd) to export.
-          c     - the number of coherent modes to export.
-    
-    Return: None.
-    """
     
     x = optic.xtick
     y = optic.ytick
@@ -716,13 +731,13 @@ def export_data(optic, t = 'intensity', c = 9):
         c2dy[:, 1] = y
         c2dy[:, 2] = np.abs(np.reshape(optic.csd2dy, (n, 1))[:, 0])
         
-        c1dx = np.zeros((optic.xcount, 2), dtype = float)
-        c1dx[:, 0] = optic.xtick
-        c1dx[:, 1] = optic.csd1dx
+        c1dx = np.zeros((int(optic.xcount/2) - 1, 2), dtype = float)
+        c1dx[:, 0] = 2*optic.xtick[int(optic.xcount/2) : -1]*1e6
+        c1dx[:, 1] = optic.csd1dx[int(optic.xcount/2) : -1]/np.max(optic.csd1dx)
         
-        c1dy = np.zeros((optic.ycount, 2), dtype = float)
-        c1dy[:, 0] = optic.ytick
-        c1dy[:, 1] = optic.csd1dy
+        c1dy = np.zeros((int(optic.ycount/2) - 1, 2), dtype = float)
+        c1dy[:, 0] = 2*optic.ytick[int(optic.ycount/2) : -1]*1e6
+        c1dy[:, 1] = optic.csd1dy[int(optic.ycount/2) : -1]/np.max(optic.csd1dy)
         
         np.savetxt(name2dx, c2dx)
         np.savetxt(name2dy, c2dy)
@@ -790,3 +805,274 @@ def merge_optics(frames):
                 ]
     
     return frames
+
+def merge_vibration(frames):
+
+    screen = frames[0]
+    
+    for i, sc in enumerate(frames):
+        for ic in sc.cmode:
+            screen.cmode.append(ic)
+    
+    return screen
+
+def export_to_srw(optic = None, n = 0):
+    
+    """
+    Export coherent to srw wfr data.
+    
+    Args: optic - optic to save.
+          n     - coherent modes to save.
+    """
+
+def gif_maker(optic, show_process = None, frame_per_second = 10):
+    
+    from matplotlib.animation import FuncAnimation, PillowWriter
+    
+    if show_process:    
+        
+        plt.ion()
+        fig, (ax0, ax1) = plt.subplots(1, 2, figuresize = (11, 5))
+        
+        for i, ic in enumerate(optic.cmode):
+            ax0.imshow(np.abs(ic)**2)
+            ax1.imshow(np.angle(ic))
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+        
+        plt.close("all")
+    
+    fig, ax = plt.subplots()
+    def init():
+        ax.imshow(np.angle(optic.cmode[0]))
+        
+    def update(ic):
+        ax.imshow(np.angle(optic.cmode[ic]))
+        
+    ani = FuncAnimation(fig, update, range(len(optic.cmode)), init_func = init)
+    write = PillowWriter(fps = frame_per_second)
+    ani.save(optic.name + "_phase.gif", writer = write)
+    
+    fig, ax = plt.subplots()
+    def init():
+        ax.imshow(np.abs(optic.cmode[0])**2)
+        
+    def update(ic):
+        ax.imshow(np.abs(optic.cmode[ic])**2)
+        
+    ani = FuncAnimation(fig, update, range(len(optic.cmode)), init_func = init)
+    write = PillowWriter(fps = frame_per_second)
+    ani.save(optic.name + "_intensity.gif", writer = write)
+    
+
+def cal_modes(optic, ratio = 0):
+    
+    if ratio:
+    
+        cmodes = [optic.cmode[i]*np.sqrt(optic.ratio[i]) 
+                  for i in range(optic.n)]    
+    else:
+        pass
+    
+    cmodes = np.zeros((optic.xcount*optic.ycount, len(optic.cmode)), 
+                      dtype = complex)
+    for i, ic in enumerate(optic.cmode):
+        cmodes[:, i] = np.reshape(ic, (optic.xcount * optic.ycount))
+            
+    # csd = np.dot(cmodes.T.conj(), cmodes)
+    
+    from scipy.sparse import linalg
+    
+    vector, value, evolution = linalg.svds(cmodes, k = len(optic.cmode) - 2)
+    vector = vector[:, ::-1]
+    value = value[::-1]
+    evolution = evolution[::-1, :]
+    
+    return vector, value, evolution
+
+def source_center(file_name):
+    
+    with h5.File(file_name, "a") as f:
+        
+        xstart = np.array(f["description/xstart"])
+        xend   = np.array(f["description/xfin"])
+        xcount = int(np.array(f["description/nx"]))
+        ystart = np.array(f["description/ystart"])
+        yend   = np.array(f["description/yfin"])
+        ycount = int(np.array(f["description/ny"]))
+            
+        xcount = int(np.array(f["description/nx"]))
+        ycount = int(np.array(f["description/ny"]))
+        num_vector = int(np.array(f["description/n_vector"]))
+        
+        xtick = np.linspace(xstart, xend, xcount)
+        ytick = np.linspace(ystart, yend, ycount)
+        gridx, gridy = np.meshgrid(xtick, ytick)
+        
+        cmode = np.array(f["coherence/eig_vector"])
+        cmode = np.reshape(cmode, (ycount, xcount, num_vector))
+        ratio = np.array(f["coherence/eig_value"])
+        wavelength = np.array(f["description/wavelength"])
+        position = np.array(f["description/screen"])
+        
+        mode = list()
+        for i in range(num_vector):
+            mode.append(cmode[:, :, i])
+        
+        intensity = np.zeros((ycount, xcount))
+        
+        for i, ic in enumerate(mode):
+            intensity = intensity + ratio[i]*np.abs(ic)**2
+        
+        #---------------------------------------------------
+        # center x
+        ix = np.sum(intensity, 0)
+        loc_x = np.argmax(ix)
+        
+        deltax = loc_x - int(xcount/2)
+        thetax = np.arcsin(xtick[loc_x]/position)
+        rotx = np.exp(1j*(2*np.pi/wavelength) * thetax * gridx)/2
+        
+        if deltax < 0:
+            locs = 0
+            loce = xcount + 2 * deltax
+        else:
+            locs = 2 * deltax
+            loce = xcount
+        
+        plane_s = np.abs(deltax)
+        plane_e = xcount - np.abs(deltax)
+        
+        plane = np.zeros((ycount, xcount), dtype = complex)
+        
+        for i, ic in enumerate(mode):
+            
+            plane = np.copy(plane)
+            plane[:, plane_s : plane_e] = ic[:, locs : loce]
+            
+            mode[i] = plane * rotx
+            mode[i][:, 0 : plane_s] = 0
+            mode[i][:, plane_e :-1] = 0
+        #---------------------------------------------------
+        # center y
+        # iy = np.sum(intensity, 1)
+        # loc_y = np.argmax(iy)
+        # deltay = loc_y - int(ycount/2)
+        # thetay = np.arcsin(ytick[loc_y]/position)
+        # roty = np.exp(1j*(2*np.pi/wavelength) * thetay * gridy)
+        
+        # if deltay < 0:
+        #     locs = 0
+        #     loce = ycount + 2 * deltay
+        # else:
+        #     locs = 2 * deltay
+        #     loce = ycount
+        
+        # plane_s = np.abs(deltay)
+        # plane_e = ycount - np.abs(deltay)
+        
+        # plane = np.zeros((ycount, xcount), dtype = complex)
+        
+        # for i, ic in enumerate(mode):
+            
+        #     plane = np.copy(plane)
+        #     plane[plane_s : plane_e, :] = ic[locs : loce, :]
+            
+        #     mode[i] = plane * roty
+        #     mode[i][0 : plane_s, :] = 0
+        #     mode[i][plane_e :-1, :] = 0
+        
+        # cmode = np.reshape(mode, (num_vector, xcount*ycount))
+        del f["coherence/eig_vector"]
+        f["coherence/eig_vector"] = mode
+#-----------------------------------------------------------------------------#
+
+#
+# Copyright (c) 2011 Christopher Felton
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+# The following is derived from the slides presented by
+# Alexander Kain for CS506/606 "Special Topics: Speech Signal Processing"
+# CSLU / OHSU, Spring Term 2011.
+
+import numpy as np
+import matplotlib.pyplot as plt
+from  matplotlib import patches
+from matplotlib.figure import Figure
+from matplotlib import rcParams
+    
+def zplane(z, filename = None):
+    """Plot the complex z-plane given a transfer function.
+    """
+
+    # get a figure/plot
+    ax = plt.subplot(111)
+
+    # create the unit circle
+    uc = patches.Circle((0, 0), radius = 1, fill = False,
+                        color = 'black', ls = 'dashed')
+    
+    ax.add_patch(uc)
+
+    # # The coefficients are less than 1, normalize the coeficients
+    # if np.max(b) > 1:
+    #     kn = np.max(b)
+    #     b = b/float(kn)
+    # else:
+    #     kn = 1
+
+    # if np.max(a) > 1:
+    #     kd = np.max(a)
+    #     a = a/float(kd)
+    # else:
+    #     kd = 1
+        
+    # # Get the poles and zeros
+    # p = np.roots(a)
+    # z = np.roots(b)
+    # k = kn/float(kd)
+    
+    # Plot the zeros and set marker properties    
+    t1 = plt.plot(z.real, z.imag, 'go', ms = 10)
+    plt.setp( t1, markersize = 10.0, markeredgewidth = 1.0,
+              markeredgecolor = 'k', markerfacecolor = 'g')
+
+    # # Plot the poles and set marker properties
+    # t2 = plt.plot(p.real, p.imag, 'rx', ms=10)
+    # plt.setp( t2, markersize=12.0, markeredgewidth=3.0,
+    #           markeredgecolor='r', markerfacecolor='r')
+
+    # ax.spines['left'].set_position('center')
+    # ax.spines['bottom'].set_position('center')
+    # ax.spines['right'].set_visible(False)
+    # ax.spines['top'].set_visible(False)
+
+    # set the ticks
+    r = 1.2
+    plt.axis('scaled')
+    plt.axis([-r, r, -r, r])
+    ticks = [-1, -.5, .5, 1]
+    plt.xticks(ticks)
+    plt.yticks(ticks)
+
+    if filename is None:
+        plt.show()
+    else:
+        plt.savefig(filename)
+    
+
+    # return z, p, k
+    

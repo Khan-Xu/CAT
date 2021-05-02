@@ -1,17 +1,17 @@
 #-----------------------------------------------------------------------------#
-# Copyright (c) 2021 Institute of High Energy Physics Chinese Academy of 
+# Copyright (c) 2020 Institute of High Energy Physics Chinese Academy of 
 #                    Science
 #-----------------------------------------------------------------------------#
 
-__authors__  = "Han Xu - HEPS HXS (B4) xuhan@ihep.ac.cn"
-__date__     = "Date : 04.01.2021"
-__version__  = "beta-1.0"
+__authors__  = "Han Xu - heps hard x-ray scattering beamline (b4)"
+__date__     = "date : 05.02.2021"
+__version__  = "beta-0.2"
 
 
 """
-_optics: The base class of optics.
+_source_utils: Source construction support.
 
-Functions: _locate - return the nearest location of value among ticks
+Functions: None
            
 Classes  : _optic_plane - the geometry structure of optics
 """
@@ -50,12 +50,7 @@ def _locate(ticks, value):
 #-----------------------------------------------------------------------------#
 # class
 
-# Todo: delete this class.
 class _optic_plane(object):
-    
-    """
-    The basic geometry parameters of optic plane.
-    """
     
     def __init__(self, xcoor, ycoor, location):
         
@@ -87,26 +82,6 @@ class _optic_plane(object):
         self.location = location
 
 class _optics(object):
-    
-    """
-    The geometry parameters and modulation methods of optic plane.
-    
-    Noting: the unit of length is metre (m.)
-    
-    methods: remap       - Interpolate the coherent mode data and optic plane. 
-             center      - put coherent mode to center.
-             remap_plane - interpolate the optic plane (not coherent mode).
-             mask        - construct mask to the optic plane and coherent mode.
-             slit        - construct and apply a slit.
-             expand      - zero padding the optic plane and coherent mode.
-             hermite_n   - constructe 2d hermite mode.
-             cal_csd     - calculate the CSD of the optics.
-             cal_i       - calculate the intensity of the optic plane.
-             error2d     - apply a 2d phase error.
-             cmd_area    - calculate the CSD of the optics within the 
-                           specified area.
-             save        - save the optic into a .pkl file.
-    """
     
     def __init__(self, optic = None, name = "optic", 
                  n_vector = 0, position = 0):
@@ -163,15 +138,17 @@ class _optics(object):
         self.fwhmx = float()
         self.fwhmy = float()
         
-    def remap(self, xpixel, ypixel):
+    def remap(self, xpixel, ypixel, method = None):
         
         """
         Interpolate the coherent mode data. To satisfiy the sampling limit.
         
-        Args: xpixel  - the sampling density along x.
+        Args: density - the data to interpolate.
+              xpixel  - the sampling density along x.
               ypixel  - the sampling density along y.
+              c       - interpolate plane "p" or data "m"
               
-        Return: None.
+        Return: interped data.
         """
         
         self.xpixel = xpixel
@@ -179,12 +156,6 @@ class _optics(object):
         
         xcount = int((self.xend - self.xstart)/xpixel)
         ycount = int((self.yend - self.ystart)/ypixel)
-        
-        # the size of the remapped data is odd. 
-        # reason: some annoying shift of pixels after FFT (numpy and scipy) has
-        #         been observed. Using scipy FFT and odd size plane can reduce
-        #         this effect to half pxiel.
-        #         Therefore, always remap before propagate with FFT.
         
         if xcount % 2 == 0:
             xcount = xcount + 1
@@ -196,17 +167,53 @@ class _optics(object):
             
         xtick = np.linspace(self.xstart, self.xend, xcount)
         ytick = np.linspace(self.ystart, self.yend, ycount)
-
-        for i in range(self.n):
         
-            freal = interpolate.interp2d(
-                self.xtick, self.ytick, np.real(self.cmode[i]), 
-                kind = 'cubic')
-            fimag = interpolate.interp2d(
-                self.xtick, self.ytick, np.imag(self.cmode[i]),
-                kind = 'cubic')
-    
-            self.cmode[i] = freal(xtick, ytick) + 1j*fimag(xtick, ytick)
+        if method == 'ri':
+            
+            for i in range(self.n):
+            
+                freal = interpolate.interp2d(
+                    self.xtick, self.ytick, np.real(self.cmode[i]), 
+                    kind = 'cubic')
+                fimag = interpolate.interp2d(
+                    self.xtick, self.ytick, np.imag(self.cmode[i]),
+                    kind = 'cubic')
+        
+                self.cmode[i] = freal(xtick, ytick) + 1j*fimag(xtick, ytick)
+                
+        elif method == 'ap':
+            
+            for i in range(self.n):
+            
+                fabs = interpolate.interp2d(
+                    self.xtick, self.ytick, np.abs(self.cmode[i]), 
+                    kind = 'linear')
+                fangle = interpolate.interp2d(
+                    self.xtick, self.ytick, np.angle(self.cmode[i]),
+                    kind = 'linear')
+        
+                self.cmode[i] = fabs(xtick, ytick)*np.exp(1j*fangle(xtick, ytick))
+        
+        else:
+            
+            for i in range(self.n):
+                
+                from skimage.restoration import unwrap_phase
+                
+                unwraped_phase = unwrap_phase(np.angle(self.cmode[i]))
+                
+                fabs = interpolate.interp2d(
+                    self.xtick, self.ytick, np.abs(self.cmode[i]), 
+                    kind = 'cubic'
+                    )
+                
+                fangle = interpolate.interp2d(
+                    self.xtick, self.ytick, unwraped_phase,
+                    kind = 'cubic'
+                    )
+        
+                self.cmode[i] = fabs(xtick, ytick)*np.exp(1j*fangle(xtick, ytick))
+        
         
         self.xcount = xcount
         self.ycount = ycount
@@ -214,17 +221,54 @@ class _optics(object):
         self.ytick = ytick
         self.gridx, self.gridy = np.meshgrid(self.xtick, self.ytick)
         self.mask = np.ones((self.ycount, self.xcount))
+    
+    def center(self):
+        
+        self.intensity = np.zeros((self.ycount, self.xcount))
+        
+        for i, ic in enumerate(self.cmode):
+            self.intensity = self.intensity + self.ratio[i]*np.abs(ic)**2
+            
+        self.ix = np.sum(self.intensity, 0)
+        loc_x = np.argmax(self.ix)
+        delta = loc_x - int(self.xcount/2)
+        # theta = np.arcsin(self.xtick[loc_x]/self.location)/3
+        # theta = 0
+        # rotx = np.exp(1j*(2*np.pi/self.wavelength) * theta * self.gridx)
+        
+        
+        if delta < 0:
+            locs = 0
+            loce = self.xcount + 2 * delta
+        else:
+            locs = 2 * delta
+            loce = self.xcount
+        
+        plane_s = np.abs(delta)
+        plane_e = self.xcount - np.abs(delta)
+        
+        self.plane = np.zeros((self.ycount, self.xcount), dtype = complex)
+        
+        for i, ic in enumerate(self.cmode):
+            
+            plane = np.copy(self.plane)
+            plane[:, plane_s : plane_e] = ic[:, locs : loce]
+            
+            self.cmode[i] = plane * rotx
+            self.cmode[i][:, 0 : plane_s] = 0
+            self.cmode[i][:, plane_e :-1] = 0
             
     def remap_plane(self, xpixel, ypixel):
         
         """
-        Interpolate the optic plane (not coheret mode). This method is used to
-        adjust the geometry requirement of receive optic plane.
+        Interpolate the coherent mode data. To satisfiy the sampling limit.
         
-        Args: xpixel  - the sampling density along x.
+        Args: density - the data to interpolate.
+              xpixel  - the sampling density along x.
               ypixel  - the sampling density along y.
+              c       - interpolate plane "p" or data "m"
               
-        Return: None.
+        Return: interped data.
         """
         
         self.xpixel = xpixel
@@ -232,12 +276,6 @@ class _optics(object):
         
         xcount = int((self.xend - self.xstart)/xpixel)
         ycount = int((self.yend - self.ystart)/ypixel)
-        
-        # the size of the remapped data is odd. 
-        # reason: some annoying shift of pixels after FFT (numpy and scipy) has
-        #         been observed. Using scipy FFT and odd size plane can reduce
-        #         this effect to half pxiel.
-        #         Therefore, always remap before propagate with FFT.
         
         if xcount % 2 == 0:
             xcount = xcount + 1
@@ -263,21 +301,19 @@ class _optics(object):
     def add_mask(self, xcoor = None, ycoor = None, r = None, s = "b"):
          
         """
-        Construct a mask. The shape could be box or circle.
+        Construct a mask. The shape could be box or circle
         
-        The data outside the mask will be set to zeros.
-        
-        Args: xcoor - [xstart, xend].
-              ycoor - [ystart, yend].
-              r     - radicus of mask.
-              s     - shape: "b" for box; "c" for circle.
+        Args: xcoor - xstart, xend.
+              ycoor - ystart, yend.
+              r - radicus of mask.
+              s - "b" for box; "c" for circle.
               
-        Return: None.
+        Return: mask.
         """
         
         self.mask = np.zeros((self.ycount, self.xcount))
         
-        if s == "b":
+        if s is "b":
         
             # find the location of mask area.
             
@@ -290,24 +326,24 @@ class _optics(object):
             
             self.mask[locys : locye, locxs : locxe] = 1
         
-        elif s == "c":
+        elif s is "c":
             
-            rad = np.sqrt(self.gridx**2 + self.gridy**2)
+            r = np.sqrt(self.gridx**2 + self.gridy**2)
             
-            # distance < r is set as unmasked
+            # distance < rad is set as unmasked
             
-            self.mask[rad < r] = 1
+            self.mask[r < rad] = 1
             
         for i in range(self.n):
             self.cmode[i] = self.cmode[i] * self.mask
     
-    def slit(self, xcoor = None, ycoor = None):
+    def slit(self, xcoor = None, ycoor = None, t = 0):
         
         """
-        Construct and apply a slit. The data outside the slit will be deleted.
+        applied a slit.
         
-        Args: xcoor - [xstart, xend].
-              ycoor - [ystart, yend].
+        Args: xcoor - xstart, xend.
+              ycoor - ystart, yend.
         """
         
         if xcoor is None:
@@ -338,20 +374,16 @@ class _optics(object):
         self.gridx, self.gridy = np.meshgrid(self.xtick, self.ytick)
         self.mask = np.ones((self.ycount, self.xcount))
         
-        for i in range(self.n):
-            self.cmode[i] = self.cmode[i][locys : locye, locxs : locxe]
+        if t == 1:
+            for i in range(self.n):
+                self.cmode[i] = np.ones(
+                    (self.xcount, self.ycount), dtype = np.complex128
+                    )
+        elif t == 0:
+            for i in range(self.n):
+                self.cmode[i] = self.cmode[i][locys : locye, locxs : locxe]
             
     def expand(self, xcoor = None, ycoor = None):
-        
-        """
-        Zero padding the optic plane to satify the requirement of 
-        Fresnel diffraction.
-        
-        Args: xcoor - [xstart, xend].
-              ycoor - [ystart, yend].
-              
-        Return: None.
-        """
         
         eplx = int(np.abs(xcoor[0] - self.xstart)/self.xpixel)
         eprx = int(np.abs(xcoor[1] - self.xend)/self.xpixel)
@@ -389,11 +421,7 @@ class _optics(object):
     def cal_csd(self):
         
         """
-        Calculate CSD of the optics. Calcuate the csd of the optic plane 
-        before the plot (1d and 2d).
-        
-        Noting: Usually, the size of CSD is very large. Remap the data to a 
-                smaller size.
+        Calculate CSD
         
         Args: None
         
@@ -408,13 +436,31 @@ class _optics(object):
         for i in range(self.n):
             
             ratio = np.sqrt(self.ratio[i])
-            cmodex[i, :] = self.cmode[i][int(self.ycount/2), :] * ratio
-            cmodey[i, :] = self.cmode[i][:, int(self.xcount/2)] * ratio
+            
+            try: 
+                cmodex[i, :] = np.reshape(
+                    self.cmode[i][int(self.ycount/2), :], (self.xcount)
+                    ) * ratio
+            except:
+                cmodex[i, :] = np.reshape(
+                    self.cmode[i][round(self.ycount/2), :], (self.xcount)
+                    ) * ratio
+                
+            try:
+                cmodey[i, :] = np.reshape(
+                    self.cmode[i][:, int(self.xcount/2)], (self.ycount)
+                    )* ratio
+            except:
+                cmodey[i, :] = np.reshape(
+                    self.cmode[i][:, round(self.xcount/2)], (self.ycount)
+                    )* ratio
         
         # calcualte csd
         
         self.csd2dx = np.dot(cmodex.T.conj(), cmodex)
         self.csd2dy = np.dot(cmodey.T.conj(), cmodey)
+        # self.csd1dx = np.diag(np.fliplr(self.csd2dx))
+        # self.csd1dy = np.diag(np.fliplr(self.csd2dy))
         self.csd1dx = np.abs(np.diag(np.fliplr(self.csd2dx)))
         self.csd1dy = np.abs(np.diag(np.fliplr(self.csd2dy)))
         
@@ -434,6 +480,8 @@ class _optics(object):
         
         self.miu1dx = np.abs(np.diag(np.fliplr(self.miu2dx)))
         self.miu1dy = np.abs(np.diag(np.fliplr(self.miu2dy)))
+        # self.miu1dx = np.diag(np.fliplr(self.miu2dx))
+        # self.miu1dy = np.diag(np.fliplr(self.miu2dy))
         
         # calculate coherent length
         
@@ -444,14 +492,6 @@ class _optics(object):
         self.cly = np.abs(sort_y[0] - sort_y[1]) * self.ypixel/2
         
     def cal_i(self):
-        
-        """
-        Calculate the intensity of the optics. 
-        
-        Args: None
-        
-        Return: None
-        """
         
         self.intensity = np.zeros((self.ycount, self.xcount))
         
@@ -473,7 +513,8 @@ class _optics(object):
         """
         Add phase error to this optic plane.
         
-        Args: er - 2d error phase data
+        Args: er    - 2d error data
+              delta - 
               
         Return: None.
         """
@@ -483,32 +524,50 @@ class _optics(object):
         self.cmode = [np.abs(self.cmode[i]) * 
                       np.exp(1j*(self.er_phase + np.angle(self.cmode[i]))) 
                       for i in range(self.n)] 
-            
-    def cmd(self, xcoor = None, ycoor = None):
-        
+    
+    def error1d(self, error, direction = 'v'):
         """
-        Re-perform coherent mode decomposition. 
+        Add 1d phase error to this optic plane
         
-        Noting: memory and time costing! A better method is under developping.
-        
-        Args: xcoor - [xstart, xend].
-              ycoor - [ystart, yend].
-              
+        Args: error - 
+
         Return: None.
         """
         
-        if xcoor is None:
-            locxs, locxe = 0, self.xcount
-        else:
+        e = np.zeros((self.xcount, self.ycount), dtype = float)
+        if direction == 'v': 
+            for i in range(self.ycount): e[:, i] = error
+        elif direction == 'h':
+            for i in range(self.xcount): e[i, :] = error
+        
+        for i in range(self.n):
+            self.cmode[i] = self.cmode[i]*np.exp(1j*e)
+            
+    def cmd_area(self, xcoor = None, ycoor = None):
+        
+        """
+        Re-calcualte CMD.
+        
+        Args: cxstart - xstart of area for cmd.
+              cxend   - xend of area for cmd.
+              cystart - ystart of area for cmd.
+              cyend   - yend of area for cmd.
+        
+        Return: None.
+        """
+        
+        if xcoor is not None:
             locxs = _locate(self.xtick, xcoor[0])
             locxe = _locate(self.xtick, xcoor[1])
-        
-        if ycoor is None:
-            locys, locye = 0, self.ycount
         else:
+            locxs, locxe = (0, self.xcount)
+            
+        if ycoor is not None:
             locys = _locate(self.ytick, ycoor[0])
             locye = _locate(self.ytick, ycoor[1])
-        
+        else:
+            locys, locye = (0, self.ycount)
+            
         re_cmode = np.array(self.cmode)[:, locys : locye, locxs : locxe]
         xcount, ycount = re_cmode.shape[2], re_cmode.shape[1]
         cmode = np.reshape(re_cmode, (self.n, xcount * ycount))
@@ -535,12 +594,103 @@ class _optics(object):
             self.cmode[i][locys : locye, locxs : locxe] = eig_vector[:, :, i]
             self.ratio[i] = eig_value[i]
     
+    def _svd(self):
+        
+        cmodes = np.zeros((self.n, self.xcount * self.ycount), dtype = np.complex128)
+        
+        for i in range(self.n):
+            cmodes[i, :] = np.reshape(self.cmode[i], (self.xcount * self.ycount)) * np.sqrt(self.ratio[i])
+        
+        import scipy.sparse.linalg as ssl
+        
+        svd_matrix = cmodes.T
+        vector, value, evolution = ssl.svds(svd_matrix, k = self.n - 2)
+        
+        eig_vector = np.copy(vector[:, ::-1], order = 'C')
+        value = np.copy(np.abs(value[::-1]), order = 'C')
+        
+        self.cmode = list()
+        self.ratio = list()
+        for i in range(self.n - 2):
+            self.cmode.append(np.reshape(eig_vector[:, i], (self.xcount, self.ycount)))
+            self.ratio.append(value[i]**2)
+            
+    def cmd(self, xcoor = None, ycoor = None):
+        
+        """
+        Re-calcualte CMD.
+        
+        Return: None.
+        """
+        
+        # Todo list: cannot tranform data from list to array 
+        self.n = 500
+        cmode = np.zeros((500, self.xcount, self.ycount), dtype = np.complex128)
+        
+        for i in self.n:
+            cmode[i, :, :] = self.cmode[0]
+            
+        # re_cmode = np.array(self.cmode)
+        # xcount, ycount = (self.xcount, self.ycount)
+        # cmode = np.reshape(re_cmode, (self.n, xcount * ycount))
+        
+        for i in range(self.n):
+            cmode[i, :] = cmode[i, :] * np.sqrt(self.ratio[i])
+        
+        csd = np.dot(cmode.T.conj(), cmode)
+        
+        del cmode
+        
+        from scipy.sparse import linalg
+        
+        eig_value, eig_vector = linalg.eigsh(csd, k = 200)
+        eig_vector = np.reshape(eig_vector, (self.ycount, self.xcount, 200))
+        cmode = np.zeros((self.ycount, self.xcount), dtype = np.complex128)
+        
+        self.ratio = list()
+        for i in range(self.n):
+            
+            self.cmode[i] = np.copy(cmode)
+            self.cmode[i] = eig_vector[:, :, i]
+            self.ratio.append(eig_value[i])
+        
+        # cmode = np.reshape(np.array(self.cmode), 
+        #                     (self.n, self.xcount*self.ycount))
+        
+        # for i in range(self.n):
+        #     cmode[i] = cmode[i] * np.sqrt(self.ratio[i])
+        
+        # cmodes = np.zeros((self.xcount*self.ycount, len(self.cmode)), 
+        #               dtype = complex)
+        # for i, ic in enumerate(self.cmode):
+        #     cmodes[:, i] = np.reshape(ic, (self.xcount * self.ycount, 1))[:, 0]
+        
+        # from scipy.sparse import linalg
+        
+        # n = len(self.cmode) - 2
+        # vector, value, evolution = linalg.svds(cmodes, k = n)
+        # vector = vector[:, ::-1]
+        # value = value[::-1]
+        # evolution = evolution[::-1, :]
+        
+        # eig_vector = np.reshape(vector, 
+        #                         (self.ycount, self.xcount, n))
+        
+        # cmode = list()
+        # ratio = list()
+        
+        # for i in range(n):
+            
+        #     cmode.append(eig_vector[:, :, i])
+        #     ratio.append(value[i]**2)
+        
+        # self.cmode = cmode
+        # self.ratio = ratio
+        
     def save(self):
         
         """
-        Save all the properites to a pickle.
-        
-        Noting: please reset the name of the optic plane before saving.
+        Save all the properites.
         
         Args: None.
         

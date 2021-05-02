@@ -1,11 +1,11 @@
 #-----------------------------------------------------------------------------#
-# Copyright (c) 2021 Institute of High Energy Physics Chinese Academy of 
+# Copyright (c) 2020 Institute of High Energy Physics Chinese Academy of 
 #                    Science
 #-----------------------------------------------------------------------------#
 
-__authors__  = "Han Xu - HEPS HXS (B4) xuhan@ihep.ac.cn"
-__date__     = "Date : 04.01.2021"
-__version__  = "beta-1.0"
+__authors__  = "Han Xu - heps hard x-ray scattering beamline (b4)"
+__date__     = "date : 05.02.2021"
+__version__  = "beta-0.2"
 
 
 """
@@ -42,22 +42,24 @@ from srwpy.srwlib  import *
 class _srw_electron_beam(object):
     
     """
-    Construct e_beam base on monte carlo method.
+    ---------------------------------------------------------------------------
+    description: construct e_beam base on monte carlo method.
     
     methods: monte_carlo       - monte carlo paramters of electron beam.
-             after_monte_carlo - electron beam after monte carlo
+             after_monte_carlo - electron beam after monte carlo.
+    ---------------------------------------------------------------------------
     """
     
     def __init__(self, electron_beam, n_period, period_length):
         
         # the initail postion of electron beam
-        initial_z = -period_length * (n_period + 8)/2
+        self.initial_z = -period_length * (n_period + 8)/2
         gamma = electron_beam["energy"]/_constant._E_r
         
         self.part_beam = SRWLPartBeam()
         
         self.part_beam.Iavg = electron_beam['current']
-        self.part_beam.partStatMom1.z = initial_z
+        self.part_beam.partStatMom1.z = self.initial_z
         self.part_beam.partStatMom1.gamma = gamma
         
         # energy spread, sigma_x, sigma_xp, sigma_y, sigma_yp
@@ -72,11 +74,13 @@ class _srw_electron_beam(object):
     def monte_carlo(self):
         
         """
-        Calculate monte carlo paramters of electron beam.
+        -----------------------------------------------------------------------
+        description: calculate monte carlo paramters of electron beam.
         
-        Args: None.
+        args: none.
         
-        Return: None.
+        return: none.
+        -----------------------------------------------------------------------
         """
     
         _part_beam = deepcopy(self.part_beam)
@@ -113,16 +117,18 @@ class _srw_electron_beam(object):
                           k_vertical, k_horizontal):
         
         """
-        Calculate electron beam with monte carlo process.
+        -----------------------------------------------------------------------
+        description: calculate electron beam with monte carlo process.
         
-        Args: rand_array    - gaussian random number for sx, sxp, sy, syp.
+        args: rand_array    - gaussian random number for sx, sxp, sy, syp.
               period_length - undualtor period length.
               k_vertical    - k value of undulator vertical axis.
               k_horizontal  - k value of undulator horizontal axis.
               
-        Return: _part_beam       - electron particle beam.
+        return: _part_beam       - electron particle beam.
                 wavelength       - 
                 resonance_energy - 
+        -----------------------------------------------------------------------
         """
         
         _part_beam = deepcopy(self.part_beam)
@@ -162,11 +168,13 @@ class _srw_electron_beam(object):
 class _undulator(object):
     
     """
-    Setting unduatlor paramters.
+    ---------------------------------------------------------------------------
+    descriptionsetting unduatlor paramters.
     
     methods: magnetic_structure - magnetic structure of undulator.
              wavelength         - calcualte wavelength.
              cal_k              - calcualte k value.
+    ---------------------------------------------------------------------------
     """
     
     def __init__(self, undulator):
@@ -176,8 +184,6 @@ class _undulator(object):
         
         self.n_hormonic = undulator["n_hormonic"]
         self.hormonic_energy = undulator["hormonic_energy"]
-        # self.magnetic_field_h = undulator["magnetic_field_h"]
-        # self.magnetic_field_v = undualtor["magnetic_field_v"]
         self.magnetic_field_h = 0
         self.magnetic_field_v = 0
         
@@ -191,12 +197,14 @@ class _undulator(object):
     def magnetic_structure(self):
         
         """
-        Magnetic structure of undulator..
+        -----------------------------------------------------------------------
+        description: magnetic structure of undulator..
         
-        Args: None.
+        args: none.
         
-        Return: magnetic_field_container - magnetic field structure of 
+        return: magnetic_field_container - magnetic field structure of 
                                            undualtor.
+        -----------------------------------------------------------------------
         """
         
         mult = (_constant._ElCh / 
@@ -207,7 +215,7 @@ class _undulator(object):
         
         if self.direction == 'v':
             magnetic_fields.append(
-                SRWLMagFldH(_h_or_v = self.direction,
+                SRWLMagFldH(_h_or_v = self.direction, 
                             _B = b_vertical,
                             _s = self.symmetry[0])
                 )
@@ -244,27 +252,27 @@ class _undulator(object):
     def wave_length(self):
         
         """
-        Calcualte wavelength.
+        -----------------------------------------------------------------------
+        description: calcualte wavelength.
         
-        Args: None.
+        args: none.
         
-        Return: None
+        return: none.
+        -----------------------------------------------------------------------
         """
-        
-        # self.wavelength = (self.n_hormonic *
-        #                    (codata.c * codata.h / codata.e) /
-        #                    self.hormonic_energy)
         
         self.wavelength = (codata.c*codata.h/codata.e) / self.hormonic_energy
         
     def cal_k(self, electron_beam_energy = 6):
         
         """
-        Calcualte k value.
+        -----------------------------------------------------------------------
+        description: calcualte k value.
         
-        Args: None.
+        args: None.
         
-        Return: None
+        return: None
+        -----------------------------------------------------------------------
         """
         
         gamma = electron_beam_energy/_constant._E_r
@@ -292,9 +300,11 @@ class _undulator(object):
 class _propagate_wave_front(object):
     
     """
-    Propagate wavefront from source to screen.
+    ---------------------------------------------------------------------------
+    description: propagate wavefront from source to screen.
     
     methods: _cal_wave_front - calcualte wave front from source to screen.
+    ---------------------------------------------------------------------------
     """
     
     def __init__(self, wave_front, resonance_energy):
@@ -316,11 +326,13 @@ class _propagate_wave_front(object):
     def _cal_wave_front(self, part_beam, magnetic_container):
         
         """
-        Calcualte wavefront at the screen.
+        -----------------------------------------------------------------------
+        description: calcualte wavefront at the screen.
         
-        Args: None.
+        args: none.
         
-        Return: None
+        return: none
+        -----------------------------------------------------------------------
         """
         
         self.wfr.allocate(self.mesh.ne, self.mesh.nx, self.mesh.ny)
