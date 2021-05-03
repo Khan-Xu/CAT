@@ -16,5 +16,4 @@ Coherence Analysis Toolbox
 - RAM 64 G
 
 ## examples
-
-#### source calculation
+- source calculation: mpiexec -n 20 python HXCS_source_calculation.py
