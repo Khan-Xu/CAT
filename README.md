@@ -19,6 +19,9 @@ Coherence Analysis Toolbox
 ### source calculation
 at workstation, mpiexec -n 20 python HXCS_source_calculation.py
 
-### others
-//using spyder or vscode, so that the results can be shown directly.
--plot coherent modes of source, HXCS_source.py 
+### others (use spyder or vscode, so that the results can be shown directly).
+- plot coherent modes of source, HXCS_source.py 
+- plot secondary source, HXCS_secondary_source.py
+- plot coherent modes of X-ray beams at the sample plane, HXCS_sample_plane.py
+- perform the simulation of CXDI, HXCS_CXDI.py
+- perfrom the comparsion of propagtors, Test_multi_propagators_focus.py, Test_multi_propagators_diffract.py
