@@ -20,5 +20,5 @@ Coherence Analysis Toolbox
 at workstation, mpiexec -n 20 python HXCS_source_calculation.py
 
 ### others
--using spyder or vscode, so that the results can be shown directly.-
+//using spyder or vscode, so that the results can be shown directly.
 -plot coherent modes of source, HXCS_source.py 
