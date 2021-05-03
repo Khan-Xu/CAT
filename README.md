@@ -16,4 +16,9 @@ Coherence Analysis Toolbox
 - RAM 64 G
 
 ## examples
-- source calculation: mpiexec -n 20 python HXCS_source_calculation.py
+### source calculation
+at workstation, mpiexec -n 20 python HXCS_source_calculation.py
+
+### others
+-using spyder or vscode, so that the results can be shown directly.-
+-plot coherent modes of source, HXCS_source.py 
