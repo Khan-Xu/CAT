@@ -11,6 +11,8 @@ Coherence Analysis Toolbox
 - scipy 1.4.1 
 - h5py 2.10.0 
 - srwpy 0.0.4
+- pandas 1.0.1
+- 
 ### workstation 
 - CPU Intel Xeon Gold 6226 12C/24T
 - RAM 64 G
