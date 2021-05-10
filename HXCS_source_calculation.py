@@ -19,8 +19,8 @@ Classes  : None.
 #-----------------------------------------------------------------------------#
 # library
 
-from cat._source import _source
-from cat._source import _decomposition
+from cat.utils import _source
+from cat.utils import _decomposition
 
 #-----------------------------------------------------------------------------#
 # parameters
