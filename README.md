@@ -27,3 +27,5 @@ at workstation, mpiexec -n 20 python HXCS_source_calculation.py
 - plot coherent modes of X-ray beams at the sample plane, HXCS_sample_plane.py
 - perform the simulation of CXDI, HXCS_CXDI.py
 - perfrom the comparsion of propagtors, Test_multi_propagators_focus.py, Test_multi_propagators_diffract.py
+
+Any question, please contact xuhan@ihep.ac.cn
