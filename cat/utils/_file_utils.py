@@ -26,8 +26,8 @@ import os
 import numpy as np
 import h5py  as h
 
-from cat._source import _support
-from cat._source import _multi
+from cat.utils import _support
+from cat.utils import _multi
 
 #------------------------------------------------------------------------------
 # constant
