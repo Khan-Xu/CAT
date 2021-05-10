@@ -29,8 +29,8 @@ from cat.utils._srw_utils import _undulator
 from cat.utils._srw_utils import _srw_electron_beam
 from cat.utils._srw_utils import _propagate_wave_front
 
-from cat._source import _support
-from cat._source import _file_utils
+from cat.utils import _support
+from cat.utils import _file_utils
 
 #-----------------------------------------------------------------------------#
 # constant
