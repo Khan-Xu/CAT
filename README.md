@@ -29,3 +29,4 @@ at workstation, mpiexec -n 20 python HXCS_source_calculation.py
 - perfrom the comparsion of propagtors, Test_multi_propagators_focus.py, Test_multi_propagators_diffract.py
 
 Any question, please contact xuhan@ihep.ac.cn
+citation：http://arxiv.org/abs/2110.09655
