@@ -31,6 +31,7 @@ at workstation, mpiexec -n 20 python HXCS_source_calculation.py
 
 Any question, please contact xuhan@ihep.ac.cn
 citation：http://arxiv.org/abs/2110.09655
+
 --------------------------------------------------------------------------------------
-# BUG REPORT
+### BUG REPORT
 1. The off-axis propagation using CZT propagator  
