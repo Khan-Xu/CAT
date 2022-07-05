@@ -34,4 +34,4 @@ citation：http://arxiv.org/abs/2110.09655
 
 --------------------------------------------------------------------------------------
 ### BUG REPORT
-1. The off-axis propagation using CZT propagator  ; I try vibration wavefronts, seems fine.
+1. The off-axis propagation using CZT propagator  Fixed: I try vibration wavefronts, seems fine.
